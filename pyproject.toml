@@ -1,0 +1,73 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "workbench"
+version = "0.1.0"
+description = "wmshare 投研工作台：以 wmshare SDK 为数据层、以工作台为价值展现层的本地投研工作台"
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "wmshare-workbench contributors" }]
+keywords = ["finance", "investment-research", "workbench", "a-share", "wmshare", "local-first"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Typing :: Typed",
+]
+#: 运行期零第三方依赖（标准库）：本地工具的首要价值是「装得上、跑得起来」。
+#: wmshare 是可选运行时依赖——未安装时进入「未接入」态（给接入指引，无内置假数据）。
+dependencies = []
+
+[project.optional-dependencies]
+data = ["wmshare>=4.0.0"]
+dev = ["pytest>=7", "pytest-cov>=5", "ruff>=0.6"]
+figures = ["matplotlib>=3.6"]
+excel = ["openpyxl>=3.1"]
+
+[project.urls]
+Homepage = "https://github.com/open-winmale/wmshare-workbench"
+Source = "https://github.com/open-winmale/wmshare-workbench"
+Issues = "https://github.com/open-winmale/wmshare-workbench/issues"
+
+[project.scripts]
+workbench = "workbench.__main__:main"
+
+[tool.setuptools.packages.find]
+where = ["backend"]
+
+[tool.setuptools.package-data]
+# 前端构建产物必须进包——否则 pip install 拿到的包没有界面
+# （wmshare-tools 踩过：web_dist 被 gitignore 且未列入 package-data，
+#   `pip install` 后既无新 UI 也无旧 UI。门禁 gates/check_wheel.py 强制本项。）
+workbench = ["py.typed", "static/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["backend"]
+addopts = "-q"
+markers = [
+    "live: 需要网络与凭证（默认跳过；CI 不跑）",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+"gates/*.py" = ["E501"]
+
+[tool.coverage.run]
+source = ["workbench"]
+branch = true
+omit = ["*/__main__.py"]

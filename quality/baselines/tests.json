@@ -1,0 +1,32 @@
+{
+  "_comment": "每工具测试数下限棘轮。只允许上调。计数口径：文件名含 scope 末段的 test_*.py 里 `def test_` 的出现次数（由 check_plan 实现）。",
+  "version": 1,
+  "global_min_tests": 1,
+  "per_tool": {
+    "core": 0,
+    "hub": 30,
+    "autoload": 21,
+    "ec": 21,
+    "tool:sources": 0,
+    "tool:watchlist": 0,
+    "tool:markets": 0,
+    "tool:economics": 0,
+    "tool:backtest": 0,
+    "tool:dashboard": 0,
+    "tool:screener": 0,
+    "tool:equity": 0,
+    "tool:portfolio": 0,
+    "platform": 39,
+    "tools": 70,
+    "ledger": 35,
+    "frontend": 9,
+    "auth": 13,
+    "real": 29
+  },
+  "notes": [
+    "P0 只落了 core 契约与门禁自检；其余 scope 的下限在对应阶段开工时上调。",
+    "上调即刻生效：check_plan 对比 tests/ 下实际收集的用例数。",
+    "计数含类内方法（`class TestXxx` 里的 def test_）——旧版只数模块级，新测试全被漏掉。",
+    "2026-11-27 demo 运行时模式移除：scope demo 删除（test_demo_data.py → test_shape_data.py 并入夹具守卫，随 tests/ 目录计数）。"
+  ]
+}

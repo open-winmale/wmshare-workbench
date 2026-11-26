@@ -1,0 +1,246 @@
+/**
+ * 设计令牌 —— 唯一真源（`docs/DESIGN_SYSTEM.md` §2）
+ *
+ * 来源边界：
+ *   语义色、UI 字体栈、阴影、字号/间距/圆角/动效/层级 = **自定**（ADR-002 商务主题）
+ *   12 色图表调色板、数字等宽字体族             = **移植**（ADR-001，顺序不可变）
+ *
+ * 改令牌等于全局重构：需改 `quality/baselines/tokens.json` + 更新视觉基线
+ * + 记一条 refactor 工作项（§13）。
+ */
+
+:root {
+  color-scheme: dark;
+
+  /* ---- 色彩：Business Dark（默认暗色；亮色见 [data-theme='daylight']） ---- */
+  --wb-bg-base: #0f1419;
+  --wb-bg-surface: #171c24;
+  --wb-bg-raised: #1f2630;
+  --wb-bg-hover: #2a3340;
+  --wb-bg-inset: #121821;
+
+  --wb-border-dim: #2b333d;
+  --wb-border-med: #3a4552;
+  --wb-border-bright: #5a6675;
+
+  --wb-text-primary: #e6e8eb;
+  --wb-text-secondary: #b4bac3;
+  --wb-text-tertiary: #8a929c;
+  --wb-text-dim: #7f8896;
+
+  --wb-accent: #4d8dff;
+  --wb-accent-bg: #14243d;
+  --wb-warning: #e0a43a;
+  --wb-info: #4d8dff;
+
+  /* A 股习惯：红涨绿跌（不随商务主题改变语义） */
+  --wb-up: #ff6b6b;
+  --wb-up-bg: #3a1a1a;
+  --wb-down: #35c77a;
+  --wb-down-bg: #123024;
+
+  --wb-row-alt: #1b222b;
+  --wb-seq-low: #1f2630;
+  --wb-seq-high: #4d8dff;
+
+  /* ---- 分层（自定；只在此文件写 rgba，门禁允许） ---- */
+  --wb-shadow-1: 0 1px 2px rgba(0, 0, 0, 0.30), 0 2px 8px rgba(0, 0, 0, 0.22);
+  --wb-shadow-2: 0 4px 16px rgba(0, 0, 0, 0.35);
+
+  /* ---- 图表 12 色（移植；顺序经色觉障碍相邻对校验，不可重排） ---- */
+  --wb-chart-1: #f5ae39;
+  --wb-chart-2: #3fb1ea;
+  --wb-chart-3: #9c51cc;
+  --wb-chart-4: #ffb8df;
+  --wb-chart-5: #4680f1;
+  --wb-chart-6: #b98749;
+  --wb-chart-7: #b7c9fc;
+  --wb-chart-8: #e45cbe;
+  --wb-chart-9: #5ed9e6;
+  --wb-chart-10: #f67f2f;
+  --wb-chart-11: #b7a1f5;
+  --wb-chart-12: #f0d947;
+
+  /* ---- 字体（UI=自定无衬线；数字/代码=移植等宽） ---- */
+  --wb-font-sans: -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans CJK SC', sans-serif;
+  --wb-font-mono: 'JetBrains Mono', 'Consolas', monospace;
+  --wb-fs-1: 11px;
+  --wb-fs-2: 12px;
+  --wb-fs-3: 13px;
+  --wb-fs-4: 14px;
+  --wb-fs-5: 16px;
+  --wb-fs-6: 20px;
+  --wb-fs-7: 28px;
+
+  /* ---- 间距（4px 基准，自定） ---- */
+  --wb-sp-1: 2px;
+  --wb-sp-2: 4px;
+  --wb-sp-3: 6px;
+  --wb-sp-4: 8px;
+  --wb-sp-5: 12px;
+  --wb-sp-6: 16px;
+  --wb-sp-7: 20px;
+  --wb-sp-8: 24px;
+  --wb-sp-9: 32px;
+  --wb-sp-10: 40px;
+  --wb-sp-11: 48px;
+
+  /* ---- 圆角（自定；控件 4–6，卡片 8–12，胶囊只给状态） ---- */
+  --wb-r-1: 4px;
+  --wb-r-2: 6px;
+  --wb-r-3: 8px;
+  --wb-r-4: 12px;
+  --wb-r-5: 999px;
+
+  /* ---- 布局（自定；外壳尺寸唯一真源） ---- */
+  --wb-topbar-h: 56px;
+  --wb-nav-w: 220px;
+  --wb-content-pad: 24px;
+
+  /* ---- 动效（自定） ---- */
+  --wb-dur-fast: 120ms;
+  --wb-dur-base: 200ms;
+  --wb-dur-flash: 600ms;
+  --wb-ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* ---- 层级（自定） ---- */
+  --wb-z-sticky: 10;
+  --wb-z-dropdown: 100;
+  --wb-z-overlay: 1000;
+  --wb-z-toast: 2000;
+}
+
+/* ---- 色彩：Business Light（默认主题；index.html 初始 data-theme='daylight'） ---- */
+[data-theme='daylight'] {
+  color-scheme: light;
+
+  --wb-bg-base: #f5f7fa;
+  --wb-bg-surface: #ffffff;
+  --wb-bg-raised: #f2f3f5;
+  --wb-bg-hover: #eef0f3;
+  --wb-bg-inset: #f7f8fa;
+
+  --wb-border-dim: #e5e6eb;
+  --wb-border-med: #c9cdd4;
+  --wb-border-bright: #86909c;
+
+  --wb-text-primary: #1d2129;
+  --wb-text-secondary: #4e5969;
+  --wb-text-tertiary: #6b7280;
+  --wb-text-dim: #6e7681;
+
+  --wb-accent: #2563eb;
+  --wb-accent-bg: #e8f0fe;
+  --wb-warning: #b45309;
+  --wb-info: #2563eb;
+
+  --wb-up: #d93026;
+  --wb-up-bg: #fbe9e7;
+  --wb-down: #0b7a43;
+  --wb-down-bg: #e6f6ee;
+
+  --wb-row-alt: #fafbfc;
+  --wb-seq-low: #f2f3f5;
+  --wb-seq-high: #2563eb;
+
+  --wb-shadow-1: 0 1px 2px rgba(29, 33, 41, 0.04), 0 2px 8px rgba(29, 33, 41, 0.04);
+  --wb-shadow-2: 0 4px 16px rgba(29, 33, 41, 0.08);
+
+  --wb-chart-1: #be7c09;
+  --wb-chart-2: #077fa8;
+  --wb-chart-3: #6c25a4;
+  --wb-chart-4: #d76797;
+  --wb-chart-5: #2750c7;
+  --wb-chart-6: #865634;
+  --wb-chart-7: #878cc9;
+  --wb-chart-8: #b71d9a;
+  --wb-chart-9: #279ea4;
+  --wb-chart-10: #c65102;
+  --wb-chart-11: #816bd8;
+  --wb-chart-12: #b49f03;
+}
+
+/* ---- 色盲变体：只换语义色，不动组件 ---- */
+[data-cvd='1'] {
+  --wb-up: #51a2f8;
+  --wb-up-bg: #0c1b2d;
+  --wb-down: #fa7a45;
+  --wb-down-bg: #2d160d;
+  --wb-seq-low: #2d233e;
+  --wb-seq-high: #c9adfd;
+  --wb-chart-2: #3bcabb;
+  --wb-chart-5: #a4d854;
+  --wb-chart-10: #e74783;
+}
+
+/* CVD 语义色不变，只把背景从暗色底换成亮色底 */
+[data-theme='daylight'][data-cvd='1'] {
+  --wb-up-bg: #e8f1ff;
+  --wb-down-bg: #fff1e8;
+  --wb-seq-low: #eef3fb;
+  --wb-seq-high: #7aa7ff;
+}
+
+/* ---- 基础重置 ---- */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--wb-bg-base);
+  color: var(--wb-text-primary);
+  font-family: var(--wb-font-sans);
+  font-size: var(--wb-fs-4);
+  line-height: 1.5;
+  /* 数字等宽：财经界面竖向小数位必须对齐（数字元素另行用 mono） */
+  font-variant-numeric: tabular-nums;
+}
+
+#app {
+  height: 100%;
+}
+
+/* ---- 尊重减少动效偏好 ---- */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0ms !important;
+    transition-duration: 0ms !important;
+  }
+}
+
+/* ---- 焦点环：永不移除 outline ---- */
+:focus-visible {
+  outline: 2px solid var(--wb-accent);
+  outline-offset: 2px;
+}
+
+/* ---- 滚动条 ---- */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--wb-bg-base);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--wb-border-med);
+  border-radius: var(--wb-r-5);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--wb-border-bright);
+}

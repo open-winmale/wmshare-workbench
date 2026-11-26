@@ -1,0 +1,29 @@
+{
+  "_comment": "信封契约基线。必须与 src/workbench/core/envelope.py 的 ENVELOPE_FIELDS 完全一致（tools/check_envelope.py 校验）。变更须 ADR 编号。",
+  "version": 1,
+  "envelope_version": 1,
+  "fields": [
+    "ok",
+    "as_of",
+    "data",
+    "meta",
+    "freshness",
+    "warnings",
+    "ec"
+  ],
+  "required_fields": ["ok", "as_of", "data", "meta", "freshness", "warnings", "ec"],
+  "freshness_values": ["fresh", "stale", "expired", "unknown"],
+  "ec_fields": ["pred_lo", "pred_hi", "actual", "model"],
+  "rules": {
+    "error_data_must_be_empty": true,
+    "ec_no_zero_for_unknown": true
+  },
+  "changelog": [
+    {
+      "version": 1,
+      "date": "2026-11-25",
+      "note": "初版：在 wmshare {ok,as_of,data,meta} 上追加 freshness/warnings/ec 三键",
+      "adr": "ADR-001"
+    }
+  ]
+}

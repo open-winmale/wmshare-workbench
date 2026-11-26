@@ -1,0 +1,365 @@
+{
+  "_comment": "AI 助手工具清单即契约：通用执行器（executor.py）消费本清单，不硬编码工具。wmshare 新能力接入 = 加一条目（target 必须真实存在，tests/test_assistant_registry.py 会对照目录校验）；新领域 = 新 domain + skills/<domain>/SKILL.md。params 形状对齐 wmshare 目录的 params 声明（2026-11-27 实拍）。cost: auto=廉价AUTO / medium=常规 / high=昂贵（描述里提示先小额试探） / local=本地零EC",
+  "version": 1,
+  "tools": [
+    {
+      "id": "kline_bars",
+      "domain": "market",
+      "kind": "call",
+      "target": "kline.query_bars",
+      "title": "日 K 线",
+      "cost": "medium",
+      "evidence": "行情",
+      "max_rows": 30,
+      "description": "取一只标的的日 K 线（收盘/高低/量额），默认最近 120 根，按日期升序",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码，如 600519"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "required": false,
+          "default": 120,
+          "desc": "根数"
+        }
+      ]
+    },
+    {
+      "id": "kline_snapshot",
+      "domain": "market",
+      "kind": "call",
+      "target": "kline.snapshot",
+      "title": "实时快照",
+      "cost": "auto",
+      "evidence": "行情",
+      "description": "取一只标的的最新快照（价格/涨跌幅/市值/量额等多字段）",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        }
+      ]
+    },
+    {
+      "id": "kline_last_live",
+      "domain": "market",
+      "kind": "call",
+      "target": "kline.query_last_live",
+      "title": "盘中现价",
+      "cost": "auto",
+      "evidence": "行情",
+      "description": "取一只标的的盘中现价与当日涨跌（休市=最近收盘，如实标注数据日期）",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        }
+      ]
+    },
+    {
+      "id": "kline_minute",
+      "domain": "market",
+      "kind": "call",
+      "target": "kline.query_min1_live",
+      "title": "当日分时",
+      "cost": "auto",
+      "evidence": "分时",
+      "description": "取一只标的的当日 1 分钟分时（累计量额+当分钟增量；仅交易时段/当日有效）",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        }
+      ]
+    },
+    {
+      "id": "daily_basic",
+      "domain": "fundamental",
+      "kind": "call",
+      "target": "valuation.daily_basic",
+      "title": "估值指标",
+      "cost": "medium",
+      "evidence": "估值",
+      "max_rows": 30,
+      "description": "取一只标的的每日估值长表（date/field/value；PE/PB/PS/市值/股息率等；建议用 fields 收窄）",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        },
+        {
+          "name": "begin",
+          "type": "string",
+          "required": false,
+          "desc": "ISO 起日，留空=开区间"
+        },
+        {
+          "name": "end",
+          "type": "string",
+          "required": false,
+          "desc": "ISO 止日，留空=开区间"
+        },
+        {
+          "name": "fields",
+          "type": "array",
+          "required": false,
+          "desc": "字段子集：pe_ttm/pb/ps/pr/dv_ttm/total_mv/total_share/circ_mv/float_share/turnover_rate；留空=全部"
+        }
+      ]
+    },
+    {
+      "id": "statements_income",
+      "domain": "fundamental",
+      "kind": "facade",
+      "ns": "statements",
+      "method": "income",
+      "title": "利润表",
+      "cost": "high",
+      "evidence": "财报",
+      "description": "取一只标的的利润表跨期数据（营收/净利/ROE 等，按年报期次透视）。昂贵：单次约数万 EC，仅在用户明确要财务数据时调用",
+      "params": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        },
+        {
+          "name": "years",
+          "type": "int",
+          "required": false,
+          "default": 5,
+          "desc": "年数（默认 5）"
+        }
+      ],
+      "target": "statements.income"
+    },
+    {
+      "id": "dividend_history",
+      "domain": "fundamental",
+      "kind": "facade",
+      "ns": "dividend",
+      "method": "history",
+      "title": "分红明细",
+      "cost": "auto",
+      "evidence": "分红",
+      "max_rows": 30,
+      "description": "取一只标的的分红历史明细（公告日/除权日/派息日/每股分红 dps/分红总额/派息率/送股；按除权日升序）",
+      "params": [
+        {
+          "name": "symbol",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "required": false,
+          "default": 20,
+          "desc": "条数（默认 20，上限 500）"
+        },
+        {
+          "name": "begin",
+          "type": "string",
+          "required": false,
+          "desc": "ISO 起日（按除权日，需与 end 同时给）"
+        },
+        {
+          "name": "end",
+          "type": "string",
+          "required": false,
+          "desc": "ISO 止日"
+        }
+      ],
+      "target": "dividend.history"
+    },
+    {
+      "id": "dividend_yield",
+      "domain": "fundamental",
+      "kind": "call",
+      "target": "bonus.snapshot",
+      "title": "股息快照",
+      "cost": "auto",
+      "evidence": "分红",
+      "description": "取一只标的的股息/派息快照（TTM 股息率、近 3 年均值/最小值、派息率、股息率 3 年分位等；比率均为小数，如 0.036=3.6%）",
+      "params": [
+        {
+          "name": "sym",
+          "type": "string",
+          "required": true,
+          "desc": "6 位代码"
+        }
+      ]
+    },
+    {
+      "id": "screener_query",
+      "domain": "screen",
+      "kind": "facade",
+      "ns": "screener",
+      "method": "query",
+      "title": "条件选股",
+      "cost": "high",
+      "evidence": "筛选",
+      "guards": true,
+      "description": "按表达式全市场选股（如 $PE_TTM < 15）。昂贵且免注册不可用；默认追加非负守卫（布尔位跳过；商誉/有息负债等零值合法）",
+      "params": [
+        {
+          "name": "where",
+          "type": "string",
+          "required": true,
+          "desc": "XS 表达式，用 && / ||，不要 and/or/not"
+        },
+        {
+          "name": "order",
+          "type": "string",
+          "required": false,
+          "desc": "排序指标，如 $PE_TTM"
+        },
+        {
+          "name": "desc",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "desc": "排序方向：true=从大到小，false=从小到大（找低估值/低 PE 时设 false）"
+        },
+        {
+          "name": "limit",
+          "type": "int",
+          "required": false,
+          "default": 30,
+          "desc": "上限（默认 30）"
+        }
+      ],
+      "target": "screener.query"
+    },
+    {
+      "id": "breadth_bins",
+      "domain": "screen",
+      "kind": "facade",
+      "ns": "screener",
+      "method": "index_breadth_bins",
+      "title": "市场宽度",
+      "cost": "auto",
+      "evidence": "宽度",
+      "description": "取全市场涨跌分布直方图（今日市场整体强弱）",
+      "params": [],
+      "target": "screener.index_breadth_bins"
+    },
+    {
+      "id": "top_movers",
+      "domain": "screen",
+      "kind": "facade",
+      "ns": "screener",
+      "method": "index_top_movers",
+      "title": "涨跌幅榜",
+      "cost": "auto",
+      "evidence": "榜单",
+      "description": "取今日涨幅/跌幅榜前列标的",
+      "params": [
+        {
+          "name": "desc",
+          "type": "boolean",
+          "required": false,
+          "default": true,
+          "desc": "true=涨幅榜，false=跌幅榜"
+        }
+      ],
+      "target": "screener.index_top_movers"
+    },
+    {
+      "id": "macro_query",
+      "domain": "macro",
+      "kind": "call",
+      "target": "macro.query",
+      "title": "宏观指标",
+      "cost": "auto",
+      "evidence": "宏观",
+      "description": "取一个宏观指标近 N 期序列（$CPI、$PMI、$PPI 等；最多 10 期，未知码返回全空骨架）",
+      "params": [
+        {
+          "name": "code",
+          "type": "string",
+          "required": true,
+          "desc": "指标码或名称，如 $CPI"
+        },
+        {
+          "name": "n",
+          "type": "int",
+          "required": false,
+          "default": 6,
+          "desc": "期数（1-10）"
+        }
+      ]
+    },
+    {
+      "id": "macro_bond_curve",
+      "domain": "macro",
+      "kind": "call",
+      "target": "macro.bond_curve",
+      "title": "债券收益率曲线",
+      "cost": "auto",
+      "evidence": "宏观",
+      "description": "取某条债券收益率曲线某期限的最新收益率原值（如中债国债收益率曲线 10 年）",
+      "params": [
+        {
+          "name": "curve_name",
+          "type": "string",
+          "required": true,
+          "desc": "曲线披露名"
+        },
+        {
+          "name": "tenor",
+          "type": "string",
+          "required": true,
+          "desc": "期限列名，如 10年"
+        }
+      ]
+    },
+    {
+      "id": "fx_list",
+      "domain": "macro",
+      "kind": "call",
+      "target": "fx.list",
+      "title": "汇率列表",
+      "cost": "auto",
+      "evidence": "外汇",
+      "description": "取在库币种清单（币种/数据日期/中间价），用于回答汇率与外币换算",
+      "params": []
+    },
+    {
+      "id": "watchlist_rows",
+      "domain": "portfolio",
+      "kind": "local",
+      "target": "local.watchlist",
+      "title": "自选清单",
+      "cost": "local",
+      "evidence": "本地",
+      "description": "读本地自选清单（零 EC；行内是用户自己存的代码与分组）",
+      "params": []
+    },
+    {
+      "id": "position_sets",
+      "domain": "portfolio",
+      "kind": "local",
+      "target": "local.positions",
+      "title": "持仓档案",
+      "cost": "local",
+      "evidence": "本地",
+      "description": "读本地持仓档案名列表（零 EC；要看具体成交需用户在持仓页打开）",
+      "params": []
+    }
+  ]
+}

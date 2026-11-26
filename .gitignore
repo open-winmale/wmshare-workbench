@@ -1,0 +1,41 @@
+# 数据与私有产物：库文件、快照、凭证
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.eggs/
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.mypy_cache/
+
+# 前端
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+frontend/dist-pages/
+*.tsbuildinfo
+
+# 前端构建产物（由 `make web` 生成，不入库；但必须进 wheel —— 见 check_wheel）
+backend/workbench/static/
+
+# 环境与凭证
+.env
+.env.*
+!.env.local.example
+*.pem
+*.key
+
+# 系统
+.DS_Store
+._*
+Thumbs.db

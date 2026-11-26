@@ -1,0 +1,12 @@
+{
+  "_comment": "函数圈复杂度棘轮基线。只允许变小（docs/PROJECT_SPEC.md §3）。未登记函数按 max_complexity 判定；已登记按 baseline 判定。",
+  "version": 1,
+  "max_complexity": 12,
+  "baseline": {
+    "backend/workbench/core/envelope.py::build": 6,
+    "backend/workbench/core/envelope.py::ok_envelope": 1,
+    "backend/workbench/core/envelope.py::error_envelope": 3,
+    "backend/workbench/core/envelope.py::wrap_upstream": 4,
+    "backend/workbench/core/envelope.py::Envelope.__post_init__": 4
+  }
+}

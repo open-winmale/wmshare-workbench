@@ -1,0 +1,63 @@
+{
+  "_comment": "UI 组件清单与引用处数基线。孤儿组件（usage=0）即红。由 tools/gen_component_index.py --write 生成/校验。",
+  "version": 1,
+  "components": {
+    "AppNav": {
+      "file": "frontend/src/components/layout/AppNav.vue",
+      "usage": 2
+    },
+    "AppTopbar": {
+      "file": "frontend/src/components/layout/AppTopbar.vue",
+      "usage": 2
+    },
+    "AsOfChip": {
+      "file": "frontend/src/components/ui/AsOfChip.vue",
+      "usage": 6
+    },
+    "BarChart": {
+      "file": "frontend/src/components/ui/BarChart.vue",
+      "usage": 6
+    },
+    "DataTable": {
+      "file": "frontend/src/components/ui/DataTable.vue",
+      "usage": 28
+    },
+    "KLineChart": {
+      "file": "frontend/src/components/ui/KLineChart.vue",
+      "usage": 4
+    },
+    "KpiStrip": {
+      "file": "frontend/src/components/ui/KpiStrip.vue",
+      "usage": 12
+    },
+    "LineChart": {
+      "file": "frontend/src/components/ui/LineChart.vue",
+      "usage": 9
+    },
+    "LoadingSkeleton": {
+      "file": "frontend/src/components/ui/LoadingSkeleton.vue",
+      "usage": 20
+    },
+    "PanelShell": {
+      "file": "frontend/src/components/ui/PanelShell.vue",
+      "usage": 18
+    },
+    "Segmented": {
+      "file": "frontend/src/components/ui/Segmented.vue",
+      "usage": 8
+    },
+    "StateBlock": {
+      "file": "frontend/src/components/ui/StateBlock.vue",
+      "usage": 29
+    },
+    "StatusBadge": {
+      "file": "frontend/src/components/ui/StatusBadge.vue",
+      "usage": 2
+    }
+  },
+  "min_usage": 1,
+  "notes": [
+    "usage 计数：组件被 <XxxYyy /> 或 <xxx-yyy /> 引用的次数，不含自身定义与预览页。",
+    "P0 阶段清单为空是正确状态；P1 落组件后用 --write 生成。"
+  ]
+}

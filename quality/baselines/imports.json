@@ -1,0 +1,110 @@
+{
+  "_comment": "跨层依赖白名单（version 2：前后端两套独立层次）。深度语义：数字越小越深。判定顺序=白名单优先，未登记再判方向。见 docs/PROJECT_SPEC.md §2。",
+  "version": 2,
+  "backend": {
+    "depth": {
+      "core": 0,
+      "platform": 1,
+      "client": 2,
+      "tools": 3,
+      "bootstrap": 4
+    },
+    "allowed_edges": [
+      [
+        "platform",
+        "core"
+      ],
+      [
+        "client",
+        "core"
+      ],
+      [
+        "client",
+        "platform"
+      ],
+      [
+        "tools",
+        "core"
+      ],
+      [
+        "tools",
+        "platform"
+      ],
+      [
+        "tools",
+        "client"
+      ],
+      [
+        "bootstrap",
+        "core"
+      ],
+      [
+        "bootstrap",
+        "platform"
+      ],
+      [
+        "bootstrap",
+        "client"
+      ],
+      [
+        "bootstrap",
+        "tools"
+      ]
+    ],
+    "notes": [
+      "core 是叶子：不得 import 任何本项目模块。",
+      "backend/workbench/ 顶层模块（__main__.py/bootstrap.py）归 bootstrap 层——组合根。",
+      "bootstrap 是唯一允许 import tools 的地方：它负责装配，不承载业务逻辑。",
+      "platform 不得 import client/tools：它只做存储/凭证/HTTP 机制，不碰取数与业务。",
+      "tools/<a> 不得 import tools/<b>：工具之间零耦合。",
+      "tools→platform 允许：handler 需要 SQLite/凭证等平台能力。"
+    ]
+  },
+  "frontend": {
+    "depth": {
+      "api": 0,
+      "components": 1,
+      "composables": 2,
+      "features": 3
+    },
+    "allowed_edges": [
+      [
+        "components",
+        "api"
+      ],
+      [
+        "composables",
+        "api"
+      ],
+      [
+        "composables",
+        "components"
+      ],
+      [
+        "features",
+        "api"
+      ],
+      [
+        "features",
+        "components"
+      ],
+      [
+        "features",
+        "composables"
+      ]
+    ],
+    "notes": [
+      "components→api 允许：组件需要 contract.ts 里的类型定义。",
+      "components→composables 禁止：组件是纯展示层，不该持有状态编排。",
+      "features/<a> 不得 import features/<b>：工具之间零耦合。",
+      "api/ 是唯一 fetch 出口；其它层出现 fetch( 即红。",
+      "frontend/src/ 顶层文件（main.ts/App.vue）是应用入口，不参与分层校验。"
+    ]
+  },
+  "cross_boundary": {
+    "rule": "前后端不得互相 import。契约唯一真源=backend/workbench/core/envelope.py，前端读取 gates/gen_contract.py 生成的 frontend/src/api/contract.ts。",
+    "generated": [
+      "frontend/src/api/contract.ts"
+    ]
+  }
+}
