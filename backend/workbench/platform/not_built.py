@@ -32,10 +32,11 @@ NOT_BUILT_HTML = (
  body { font: 15px/1.7 -apple-system, "Segoe UI", "Noto Sans SC", sans-serif;
         max-width: 44em; margin: 10vh auto; padding: 0 24px; }
  h1 { font-size: 1.4em; margin-bottom: .4em; }
- code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
+ <code, pre { font-family: ui-monospace, "Cascadia Mono", Consolas, monospace; }
  code { background: rgba(127,127,127,.14); border-radius: 4px; padding: 2px 6px; }
  pre { background: rgba(127,127,127,.10); border: 1px solid rgba(127,127,127,.25);
-       border-radius: 8px; padding: 14px 16px; overflow-x: auto; }
+       border-radius: 8px; padding: 14px 16px; overflow-x: auto;
+       white-space: pre-wrap; word-break: break-all; }
  .hint { opacity: .72; font-size: .92em; }
  a { color: #2f6feb; }
  @media (prefers-color-scheme: dark) { a { color: #6ea8fe; } }
