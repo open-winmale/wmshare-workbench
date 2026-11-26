@@ -374,8 +374,36 @@ def test_server_root_returns_hint_page_when_not_built(live_server: str) -> None:
         assert r.status == 200
         assert r.headers["Cache-Control"] == "no-cache"
         html = r.read().decode("utf-8")
-    assert "make web" in html
+    assert "python -m workbench.build" in html
     assert "前端尚未构建" in html
+
+
+def test_hint_page_css_is_not_fstring_escaped() -> None:
+    """提示页里不得出现 ``{{``——那是 f-string 转义写法，普通字符串会原样输出。
+
+    **真事（2026-11-26）**：``_NOT_BUILT_HTML`` 是普通字符串却把 CSS 写成
+    ``body{{...}}``，于是整段样式失效：白底无样式、``<pre>`` 里的 ``#`` 被
+    当标题渲染。而这是用户「装完没界面」时唯一的指引。原测试只断言「包含
+    ``make web`` 字样」，所以坏了两天没人发现。
+    """
+    from workbench.platform.not_built import NOT_BUILT_HTML
+
+    assert "{{" not in NOT_BUILT_HTML, "出现 f-string 转义残留 {{，CSS 会失效"
+    assert "}}" not in NOT_BUILT_HTML
+    # 样式必须真的生效：有选择器块，且不是被转义坏的空壳
+    assert NOT_BUILT_HTML.count("{") == NOT_BUILT_HTML.count("}")
+
+
+def test_hint_page_offers_nodepath_to_users() -> None:
+    """提示页首选「装预构建包」（多数用户只需要这条），其次才是源码构建。
+
+    「用户装完没界面」这个问题的正解是换用自带界面的包，而不是让终端用户
+    去装 Node。指引里必须给出那条一条命令能跑完的路径。
+    """
+    from workbench.platform.not_built import NOT_BUILT_HTML
+
+    assert "releases/latest/download" in NOT_BUILT_HTML
+    assert "pip install" in NOT_BUILT_HTML
 
 
 def test_server_serves_index_with_no_cache(live_server: str,

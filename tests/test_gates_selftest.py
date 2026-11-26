@@ -11,9 +11,11 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 import pytest
@@ -21,6 +23,8 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 GATES = REPO / "gates"
 PY = sys.executable
+#: 真实 ``dist/``（``check_wheel`` 的默认搜索位置）。
+DIST = REPO / "dist"
 
 
 def run_gate(script: str, *args: str) -> subprocess.CompletedProcess[str]:
@@ -45,6 +49,69 @@ def test_all_gates_pass_on_clean_repo() -> None:
         proc = run_gate(script, *args)
         assert proc.returncode == 0, (
             f"{script} 在干净仓库上失败：\n{proc.stdout}\n{proc.stderr}")
+
+
+class TestWheelGate:
+    """``check_wheel`` 的自测。
+
+    **为什么单列**：它需要先有 wheel，不能进 ``test_all_gates_pass_on_clean_repo``
+    （干净 clone 上没有 ``dist/``）。但它又必须被自测——此前它从不在任何测试里，
+    于是「拿旧 wheel 判绿」这个缺陷活了很久（实测 11-25 的 wheel 引用
+    ``index-4rRQcC-S.js``，而产物已是 ``index-DjAHLk_6.js``，门禁照样 OK）。
+    """
+
+    def test_fails_loudly_without_wheel(self, tmp_path: Path) -> None:
+        """没有 wheel 时给可读失败，而不是崩。"""
+        proc = run_gate("check_wheel.py", "--wheel", str(tmp_path / "nope.whl"))
+        assert proc.returncode == 1, proc.stdout + proc.stderr
+        assert "找不到 wheel" in proc.stdout
+
+    def test_fails_on_wheel_without_static(self, tmp_path: Path) -> None:
+        """wheel 里没有 static/index.html → 红（这正是「装完没界面」）。"""
+        wheel = tmp_path / "fake-1.0-py3-none-any.whl"
+        _zip(wheel, {"fake/__init__.py": ""})
+        proc = run_gate("check_wheel.py", "--wheel", str(wheel))
+        assert proc.returncode == 1, proc.stdout
+        assert "不含 workbench/static/index.html" in proc.stdout
+
+    def test_fails_when_index_points_at_missing_asset(self, tmp_path: Path) -> None:
+        """index.html 引用的 JS 不在包里 → 红（``build/lib`` 残留造成「拷一半」）。"""
+        wheel = tmp_path / "half-1.0-py3-none-any.whl"
+        _zip(wheel, {
+            "workbench/static/index.html":
+                '<script src="./assets/index-ABC.js"></script>',
+            "workbench/static/assets/other-XYZ.js": "// 不是被引用的那个",
+        })
+        proc = run_gate("check_wheel.py", "--wheel", str(wheel))
+        assert proc.returncode == 1, proc.stdout
+        assert "包内不存在的资源" in proc.stdout
+
+    def test_fails_on_stale_wheel(self) -> None:
+        """wheel 比 static/index.html 旧 → 红（校验的是上一轮构建）。"""
+        wheel = DIST / "stale-0.0.0-py3-none-any.whl"
+        static_index = REPO / "backend" / "workbench" / "static" / "index.html"
+        if not static_index.is_file():
+            pytest.skip("本地没有前端产物，无法构造「陈旧」场景")
+        _zip(wheel, {
+            "workbench/static/index.html": '<script src="./assets/index-ABC.js"></script>',
+            "workbench/static/assets/index-ABC.js": "// x",
+        })
+        old = static_index.stat().st_mtime - 3600
+        os.utime(wheel, (old, old))
+        try:
+            proc = run_gate("check_wheel.py", "--wheel", str(wheel))
+        finally:
+            wheel.unlink(missing_ok=True)
+        assert proc.returncode == 1, proc.stdout
+        assert "校验的是上一次构建的包" in proc.stdout
+
+
+def _zip(path: Path, files: dict[str, str]) -> None:
+    """把一个 ``{成员名: 文本}`` 写成最小 zip（模拟 wheel）。"""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with zipfile.ZipFile(path, "w") as zf:
+        for name, text in files.items():
+            zf.writestr(name, text)
 
 
 # --------------------------------------------------------------------------

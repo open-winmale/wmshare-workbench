@@ -7,8 +7,18 @@
 ```bash
 git clone https://github.com/open-winmale/wmshare-workbench && cd wmshare-workbench
 python -m pip install -e ".[dev]"
-make preview          # 门禁 + 测试，全绿才能开工
+python -m workbench.build     # 构建前端产物（需要 Node ≥ 18.18）
+make preview                  # 门禁 + 测试，全绿才能开工
 ```
+
+**Windows / 没有 GNU make**：等价命令是 `python gates/check_layers.py`（逐个门禁
+同法）与 `python -m pytest -q`；`make check` / `make test` 只是它们的包装。
+构建与清理都不需要 make：`python -m workbench.build` 与
+`python -m workbench.build --clean`。
+
+**改了前端**：重跑 `python -m workbench.build`。产物不进 git，所以忘了构建时
+页面会停在旧版本——`gates/check_docs_links.py` 不会发现，但 `make wheel` 的
+`check_wheel` 会（它要求 wheel 不早于产物）。
 
 ## 工作流
 

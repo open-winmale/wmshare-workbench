@@ -3,8 +3,14 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "workbench"
-version = "0.1.0"
+#: 发行名与导入名不同是标准做法（pillow→PIL、beautifulsoup4→bs4）：导入名仍是
+#: ``workbench``，但发行名必须带前缀——PyPI 上的 ``workbench`` 已被一个无关的
+#: AWS SageMaker 项目占用（v0.8.x），撞名会让发布失败，也会让
+#: ``pip install workbench`` 装错包。
+name = "wmshare-workbench"
+#: 版本单一来源：``backend/workbench/__init__.py`` 的 ``__version__``。
+#: 与 ``frontend/package.json`` 的一致性由 gates/check_contract.py 校验。
+dynamic = ["version"]
 description = "wmshare 投研工作台：以 wmshare SDK 为数据层、以工作台为价值展现层的本地投研工作台"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -38,7 +44,18 @@ Source = "https://github.com/open-winmale/wmshare-workbench"
 Issues = "https://github.com/open-winmale/wmshare-workbench/issues"
 
 [project.scripts]
+#: 控制台脚本用全名，避免与系统上其他 ``workbench`` 可执行文件撞名。
+wmshare-workbench = "workbench.__main__:main"
+#: 保留短别名，兼容既有文档与使用习惯。
 workbench = "workbench.__main__:main"
+
+[tool.setuptools.dynamic]
+version = { attr = "workbench.__version__" }
+
+[tool.setuptools]
+#: ``package-data`` 已列全要进包的文件；关掉 manifest 推断可避免将来
+#: 加了 MANIFEST.in 后把源码树（frontend/、node_modules/）误带进 wheel。
+include-package-data = false
 
 [tool.setuptools.packages.find]
 where = ["backend"]

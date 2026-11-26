@@ -13,6 +13,17 @@ make test       # 离线测试
 make preview    # 上面两个一起跑（提交前用这个）
 ```
 
+构建前端（产物不入库，改前端后必须跑；跨平台，Windows 也适用）：
+
+```bash
+python -m workbench.build          # 构建到 workbench/static/
+python -m workbench.build --check  # 只校验产物完整
+```
+
+改动「打包/分发」相关代码后额外跑 `make wheel`——它会构建 wheel 并断言内含
+`static/index.html`（`check_wheel` 不在 `make check` 的八门禁里，因为它需要先有
+wheel）。
+
 ## 硬规则（按优先级）
 
 1. **先改规范，再改代码**。新增能力若与 `docs/PROJECT_SPEC.md` 冲突，先改规范并记 ADR，

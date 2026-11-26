@@ -1,0 +1,113 @@
+# 发布：打 `v*` tag 时构建含前端的 wheel 并挂到 GitHub Release。
+#
+# 存在的理由：前端产物不入库（.gitignore），所以「干净 clone 构建出的 wheel
+# 没有界面」。本工作流把产物在 CI 里构建好再打包，用户装 wheel 时不需要 Node。
+#
+# 用户拿到的一条命令（资产名固定，链接不随版本变）：
+#   pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:      # 允许手动演练，不产生 release 之外的影响
+
+permissions:
+  contents: write         # 创建 release 与上传资产
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # 装项目本身（含 build 工具），这样 `python -m workbench.build` 可用
+      - name: 安装项目
+        run: python -m pip install -e ".[dev]"
+
+      # 拓扑顺序：先构建前端产物，再打包。顺序颠倒就会打出没有界面的包。
+      - name: 构建前端产物
+        run: python -m workbench.build
+
+      - name: 构建 wheel
+        run: python -m build --wheel
+
+      # 三道断言：产物在包内、index.html 引用的资源齐全、package 不含源码树
+      - name: 断言 wheel 内含前端产物
+        run: python gates/check_wheel.py
+
+      # 端到端：在干净环境里装这个 wheel 起服务，确认首页是真实界面而不是提示页。
+      # 这一步才是「用户视角」的验证——前面几步都成功也可能装出白屏。
+      - name: 干净环境安装并冒烟
+        run: |
+          set -euo pipefail
+          python -m venv /tmp/verify
+          /tmp/verify/bin/pip install --quiet dist/*.whl
+          /tmp/verify/bin/python - <<'PY'
+          import json, subprocess, sys, time, urllib.request
+          from pathlib import Path
+
+          proc = subprocess.Popen(
+              [sys.executable, "-m", "workbench", "--port", "8798"],
+              stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+          try:
+              for _ in range(40):
+                  try:
+                      with urllib.request.urlopen(
+                              "http://127.0.0.1:8798/api/health", timeout=2) as r:
+                          if r.status == 200:
+                              break
+                  except OSError:
+                      time.sleep(0.5)
+              else:
+                  sys.exit("服务未在 20s 内就绪")
+
+              with urllib.request.urlopen("http://127.0.0.1:8798/", timeout=5) as r:
+                  html = r.read().decode("utf-8", "replace")
+              if "前端尚未构建" in html:
+                  sys.exit("FAIL: 首页是「前端未构建」提示页——wheel 里没有界面")
+              if 'id="app"' not in html:
+                  sys.exit(f"FAIL: 首页不是 Vite 产物：{html[:200]}")
+              print("OK   安装后的首页是真实界面")
+          finally:
+              proc.terminate()
+          PY
+
+      # 资产名固定：/releases/latest/download/<固定名> 才能长期有效
+      - name: 规整资产名
+        run: |
+          set -euo pipefail
+          whl=$(ls dist/*.whl)
+          echo "WHL=$whl" >> "$GITHUB_ENV"
+          cp "$whl" dist/wmshare_workbench-py3-none-any.whl
+
+      - name: 创建 Release 并上传
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            ${{ env.WHL }}
+            dist/wmshare_workbench-py3-none-any.whl
+          generate_release_notes: true
+          body: |
+            ## 安装（无需 Node、无需克隆仓库）
+
+            ```bash
+            pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+            wmshare-workbench
+            ```
+
+            打开 http://127.0.0.1:8787/ 即可使用。数据来自 wmshare：
+            装了 SDK 即为免注册真实数据；未装则页顶给出接入指引。
+
+            本工具做数据整理与历史归因，**不构成任何投资建议**。

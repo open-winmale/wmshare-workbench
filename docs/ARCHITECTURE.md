@@ -104,14 +104,17 @@ make check             # 含 check_contract：逐字节比对，手改即红
 ## 4. 构建与交付链路
 
 ```
-frontend/src/**  ──vite build──►  backend/workbench/static/**
+frontend/src/**  ──vite build──►  backend/workbench/static/**   （不入库）
                                           │
-                                    python -m build
+                            python -m workbench.build
                                           ▼
-                                   workbench-0.1.0-py3-none-any.whl
-                                   含 workbench/static/index.html
+                                   python -m build --wheel
+                                          ▼
+                        wmshare_workbench-0.1.0-py3-none-any.whl
+                          含 workbench/static/index.html
                                           │
-                                    pip install
+                              ├── GitHub Release（release.yml）→ pip install <url>
+                              └── pip install（源码路径，需先构建）
                                           ▼
                                    用户无需 Node
 ```
@@ -138,6 +141,22 @@ workbench = ["py.typed", "static/**/*"]
 **这一条是硬约束**：`wmshare-tools` 的 `web_dist/` 被 gitignore 且未列入
 `package-data`，结果 `pip install` 拿到的包**既无新 UI 也无旧 UI**，只在启动时
 打横幅提示（CHANGELOG 1.7.1）。`gates/check_wheel.py` 把根因堵死。
+
+### 两个构建期的坑（都踩过，都有守卫）
+
+1. **产物是 gitignore 的，所以干净 clone 里根本没有 `static/`**。`package-data`
+   的 glob 匹配零个文件时 setuptools **静默通过**——打出的 wheel 没有界面。
+   构建入口 `python -m workbench.build` 在构建后自检产物完整性；`check_wheel`
+   再断言 wheel 内确实有 `index.html` 且它引用的 assets 都在包里。
+2. **`python -m build` 的 `build/lib` 只增不删**（`copy_tree` 语义）。上一轮
+   留在 `build/lib` 里的旧 hash 文件会和这次的新文件**一起进 wheel**，界面
+   看着正常却混着两代产物。`python -m workbench.build` 在构建前物理清掉
+   `build/lib`，`check_wheel` 的「index.html 引用缺失资源」断言是第二道闸。
+
+**为什么不在安装时构建**：`build-system.requires` 只能声明 Python 包，没有
+PEP 517 钩子能装 Node；让 `pip install` 跑 npm 会让 Windows 用户装不上，
+也让安装耗时与网络依赖不可控。业界做法（JupyterLab / Panel / Gradio）一致：
+在 CI 里构建、把产物打进 wheel，用户端零 Node。
 
 ### 开发期两进程
 
@@ -183,27 +202,38 @@ cd frontend && npm run dev     # 前端 :5173，/api 代理到 8787
 | 前端单测 | `frontend/src/**/*.test.ts` | vitest | 格式化、数值排序键 |
 | 端到端 | P6 | Playwright | 9 工具 × 2 主题 |
 
-**跨栈测试为何伪造 dist 而不是真构建**：这样 `backend` 的 CI job 不需要 Node。
-真构建产物由 `check_wheel` 在 `wheel` job 里验证（断言包内含 `static/index.html`）。
+**跨栈测试为何伪造 dist 而不是真构建**：这样 `gates-and-tests` job 的静态托管
+用例不需要真产物（它们自己造 `tmp_path/static`）。真产物由独立的 `wheel` job
+验证——那一 job 复刻用户的安装路径。
 
 ## 7. CI 结构
 
+两个 workflow，职责分开：
+
 ```yaml
+# ci.yml —— 每次 push / PR
 jobs:
-  changes:            # dorny/paths-filter：py | web
-  backend:            # 离线：ruff + make check + pytest（不装 Node）
-  frontend:           # Node：typecheck + build + 跑跨栈静态托管测试
-  wheel:              # needs: [backend, frontend]
-                      # 构建 wheel → 断言含 static/index.html → 干净 venv 冒烟
-  ci-ok:              # 总是运行，needs 上面全部；唯一 required check
+  gates-and-tests:    # 装依赖 → python -m workbench.build → make check → make test
+  wheel:              # 同样的构建 → python -m build --wheel → check_wheel
+                      # → 干净 venv 装 wheel → 起服务 → 断言首页是真界面
+
+# release.yml —— 打 v* tag（或手动触发）
+jobs:
+  build-and-release:  # 同上构建与断言 → 上传 wheel 到 GitHub Release
+                      # 资产的固定副本名让 /releases/latest/download/ 长期有效
 ```
 
-两个要点：
+三个要点：
 
-- **`wheel` 必须 `needs: [backend, frontend]`**。`wmshare-tools` 的两个 job 并行
-  是因为它**不承诺 wheel 带 UI**；我们承诺了，所以必须有依赖。
-- **`ci-ok` 聚合 job**：GitHub 的 required check 在 workflow 被路径过滤跳过时
-  会永远 pending，PR 无法合并。always-run 的聚合 job 是标准解法。
+- **`wheel` job 是「装完没界面」这一类问题的唯一机械守卫**。它模拟的是
+  「干净机器 `pip install` 这个包」——CI 里其余 job 都刚跑过构建，产物就在
+  树上，永远看不见缺失。2026-11-26 发现的正是这个盲区：CI 只跑构建、
+  从不打包，于是打出没有 `static/` 的 wheel 也没人知道。
+- **`release.yml` 是分发的唯一出口**。前端产物不入库（§8），所以「自带界面
+  的包」只能由 release 产出；源码安装需要 `python -m workbench.build` 一次。
+- **不引入 `ci-ok` 聚合 job**：当前没有路径过滤（两个 job 每次都跑），
+  required check 不会因跳过而永久 pending，聚合层没有收益。若将来加
+  `dorny/paths-filter`，则必须补上 always-run 的聚合 job。
 
 ## 8. 不做什么
 

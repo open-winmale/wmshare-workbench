@@ -13,7 +13,7 @@
 4. 路径穿越防御：``resolve()`` 后断言仍在根内（``commonpath`` 比较），
    **不是**只取末段——取末段会丢掉子目录结构
 5. MIME 用显式字典，不用 ``mimetypes``（后者行为依赖操作系统注册表）
-6. ``static/index.html`` 不存在 → 返回 HTML 提示页 + ``make web`` 指引，
+6. ``static/index.html`` 不存在 → 返回 HTML 提示页（``platform/not_built.py``），
    **HTTP 200 而非 500**（本地工具不该报服务器错误）
 7. 每请求 ``is_file()`` 运行时探测，构建后刷新即生效、无需重启
 
@@ -32,6 +32,7 @@ from typing import Any, Callable
 from urllib.parse import parse_qs, urlparse
 
 from ..core.envelope import ENDPOINTS, error_envelope
+from .not_built import NOT_BUILT_HTML
 
 __all__ = ["ServerContext", "make_handler", "serve", "HOST", "DEFAULT_PORT"]
 
@@ -60,37 +61,19 @@ MIME: dict[str, str] = {
     ".txt": "text/plain; charset=utf-8",
 }
 
-#: 未构建前端时的提示页。**HTTP 200** —— 这不是服务器错误，是「还没构建」。
-_NOT_BUILT_HTML = """<!doctype html>
-<html lang="zh-CN"><head><meta charset="utf-8">
-<title>wmshare-workbench · 前端未构建</title>
-<style>
- body{{background:#0b0b0b;color:#e8e8e8;font:14px/1.6 'JetBrains Mono',monospace;
-      max-width:44em;margin:12vh auto;padding:0 24px}}
- code{{background:#161616;border:1px solid #262626;border-radius:4px;padding:2px 6px}}
- pre{{background:#161616;border:1px solid #262626;border-radius:6px;padding:16px;
-      overflow-x:auto}}
- .hint{{color:#8c8c8c}} a{{color:#f5a623}}
-</style></head><body>
-<h1>前端尚未构建</h1>
-<p>后端已在运行（API 可用），但 <code>backend/workbench/static/</code> 里没有
-<code>index.html</code>。</p>
-<pre>make web        # 需要 Node ≥ 18.18
-# 或
-cd frontend &amp;&amp; npm ci &amp;&amp; npm run build</pre>
-<p class="hint">构建完成后直接刷新本页即可，无需重启服务。</p>
-<p class="hint">API 仍可使用：<a href="/api/health">/api/health</a> ·
-<a href="/api/appinfo">/api/appinfo</a> · <a href="/api/tools">/api/tools</a></p>
-</body></html>
-"""
-
 
 class ServerContext:
     """服务运行期需要的全部依赖（显式传入，不搞全局单例）。"""
 
-    def __init__(self, *, store: Any, fetcher: Any,
-                 static_dir: Path, registry: dict[str, Callable[..., Any]],
-                 context: Any = None) -> None:
+    def __init__(
+        self,
+        *,
+        store: Any,
+        fetcher: Any,
+        static_dir: Path,
+        registry: dict[str, Callable[..., Any]],
+        context: Any = None,
+    ) -> None:
         self.store = store
         self.fetcher = fetcher
         self.static_dir = static_dir
@@ -121,8 +104,10 @@ def _not_ready(slug: str) -> Callable[..., Any]:
 
         return error_envelope(
             message=f"工具 {slug} 尚未接入数据源（P3/P4 阶段实现）",
-            code="not_ready", action="config",
-            meta={"slug": slug, "note": "端点已注册，业务逻辑待实现"})
+            code="not_ready",
+            action="config",
+            meta={"slug": slug, "note": "端点已注册，业务逻辑待实现"},
+        )
 
     return _handler
 
@@ -135,23 +120,35 @@ def _safe_join(root: Path, route: str) -> Path | None:
     且对 ``..`` 的处理依赖调用方记得做。
 
     返回 ``None`` 表示越界或非法。
+
+    **Windows 上要防两类异常**（POSIX 不会发生，故易漏）：``/C:/Windows/x`` 的
+    盘符会让 ``root / rel`` 丢弃 ``root``（``ntpath.join`` 语义），随后
+    ``commonpath`` 抛 ``ValueError: Paths don't have the same drive``——只捕
+    ``OSError`` 会让异常逃出请求处理器。故同时捕 ``ValueError``。
     """
     rel = posixpath.normpath(route).lstrip("/")
     if rel.startswith("..") or rel in ("", "."):
         return None
+    # 盘符（C:）、反斜杠、NTFS 备用数据流（a.js:Zone.Identifier）：正常资源名不含
+    if ":" in rel or "\\" in rel or "\x00" in rel:
+        return None
     candidate = (root / rel).resolve()
     try:
         root_resolved = root.resolve()
-    except OSError:
-        return None
-    if os.path.commonpath([str(candidate), str(root_resolved)]) != str(root_resolved):
+        if os.path.commonpath([str(candidate), str(root_resolved)]) != str(root_resolved):
+            return None
+    except (OSError, ValueError):
         return None
     return candidate
 
 
-def _dispatch_api(ctx: ServerContext, routes: dict[tuple[str, str], Any],
-                 method: str, route: str,
-                 params: dict[str, Any]) -> dict[str, Any]:
+def _dispatch_api(
+    ctx: ServerContext,
+    routes: dict[tuple[str, str], Any],
+    method: str,
+    route: str,
+    params: dict[str, Any],
+) -> dict[str, Any]:
     """API 分发：把 (method, route, params) 变成信封。
 
     抽成纯函数便于单测——不碰 socket。
@@ -161,10 +158,14 @@ def _dispatch_api(ctx: ServerContext, routes: dict[tuple[str, str], Any],
         if route in {p for (_m, p) in routes}:
             return error_envelope(
                 message=f"{route} 不接受 {method} 请求",
-                code="method_not_allowed", action="fix_input")
+                code="method_not_allowed",
+                action="fix_input",
+            )
         return error_envelope(
             message=f"未知端点：{route}；可用端点见 /api/tools",
-            code="not_found", action="fix_input")
+            code="not_found",
+            action="fix_input",
+        )
     handler_ctx = getattr(ctx, "context", ctx)
     return handler(handler_ctx, params)
 
@@ -226,8 +227,7 @@ class _Handler(BaseHTTPRequestHandler):
 
     # ---------------------------------------------------------------- 输出
 
-    def _send(self, status: int, body: bytes, ctype: str,
-              cache: str = "no-store") -> None:
+    def _send(self, status: int, body: bytes, ctype: str, cache: str = "no-store") -> None:
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
@@ -241,10 +241,8 @@ class _Handler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False, default=str).encode()
         self._send(status, body, "application/json; charset=utf-8")
 
-    def _send_html(self, status: int, html: str,
-                   cache: str = "no-cache") -> None:
-        self._send(status, html.encode("utf-8"),
-                   "text/html; charset=utf-8", cache=cache)
+    def _send_html(self, status: int, html: str, cache: str = "no-cache") -> None:
+        self._send(status, html.encode("utf-8"), "text/html; charset=utf-8", cache=cache)
 
     def log_message(self, fmt: str, *args: Any) -> None:  # noqa: A002
         if args and str(args[0]).startswith("5"):
@@ -295,20 +293,20 @@ class _Handler(BaseHTTPRequestHandler):
         if target is None:
             self._serve_static_miss(route, ctype)
             return
-        self._send(HTTPStatus.OK, target.read_bytes(), ctype,
-                   cache=_cache_header(route))
+        self._send(HTTPStatus.OK, target.read_bytes(), ctype, cache=_cache_header(route))
 
     def _serve_static_miss(self, route: str, reason: str) -> None:
         if reason == "not_built":
             # ⑥ 未构建不是服务器错误 → **200** + 构建指引
-            self._send_html(HTTPStatus.OK, _NOT_BUILT_HTML)
+            self._send_html(HTTPStatus.OK, NOT_BUILT_HTML)
             return
         msg = {
             "bad_mime": f"不支持的文件类型：{Path(route).suffix}",
             "missing": f"资源不存在：{route}",
         }.get(reason, "前端尚未构建；请先在 / 查看构建指引")
-        self._send_json(HTTPStatus.NOT_FOUND, error_envelope(
-            message=msg, code="not_found", action="fix_input"))
+        self._send_json(
+            HTTPStatus.NOT_FOUND, error_envelope(message=msg, code="not_found", action="fix_input")
+        )
 
 
 def make_handler(ctx: ServerContext) -> type[BaseHTTPRequestHandler]:
@@ -322,13 +320,15 @@ def _parse_json_body(raw: bytes) -> dict[str, Any]:
     try:
         data = json.loads(raw or b"{}")
     except json.JSONDecodeError:
-        raise _HttpError(HTTPStatus.BAD_REQUEST, error_envelope(
-            message="请求体不是合法 JSON", code="bad_json",
-            action="fix_input")) from None
+        raise _HttpError(
+            HTTPStatus.BAD_REQUEST,
+            error_envelope(message="请求体不是合法 JSON", code="bad_json", action="fix_input"),
+        ) from None
     if not isinstance(data, dict):
-        raise _HttpError(HTTPStatus.BAD_REQUEST, error_envelope(
-            message="请求体必须是 JSON 对象", code="bad_json",
-            action="fix_input"))
+        raise _HttpError(
+            HTTPStatus.BAD_REQUEST,
+            error_envelope(message="请求体必须是 JSON 对象", code="bad_json", action="fix_input"),
+        )
     return data
 
 
@@ -341,8 +341,7 @@ class _HttpError(Exception):
         self.payload = payload
 
 
-def serve(ctx: ServerContext, *, host: str = HOST,
-          port: int = DEFAULT_PORT) -> ThreadingHTTPServer:
+def serve(ctx: ServerContext, *, host: str = HOST, port: int = DEFAULT_PORT) -> ThreadingHTTPServer:
     """构造并绑定服务器（不阻塞；调用方决定 ``serve_forever`` 还是测试用）。"""
     if host != "127.0.0.1":
         # 硬约束：本地工具不对外可达（DEBT D-07）

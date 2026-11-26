@@ -41,17 +41,16 @@ smoke:  ## 真实模式冒烟：逐工具发真实请求（需服务已启动+�
 gen-contract:  ## 从 Python 契约生成 frontend/src/api/contract.ts
 	$(PY) gates/gen_contract.py
 
-web:  ## 构建前端产物到 backend/workbench/static/（需 Node ≥ 18.18）
-	cd frontend && npm ci && npm run build
+web:  ## 构建前端产物到 backend/workbench/static/（跨平台；也可 python -m workbench.build）
+	$(PY) -m workbench.build
 
-wheel:  ## 构建 wheel 并断言内含前端产物
+wheel:  ## 构建 wheel 并断言内含前端产物（先 web，否则打出的包没有界面）
+	$(PY) -m workbench.build
 	$(PY) -m build --wheel
 	$(PY) gates/check_wheel.py
 
 run:  ## 启动工作台（装了 wmshare 即免注册真实数据；未装给接入指引）
 	$(PY) run.py
 
-clean:  ## 清理构建与缓存
-	rm -rf dist build .pytest_cache .ruff_cache
-	find . -name __pycache__ -type d -prune -exec rm -rf {} +
-	rm -rf backend/workbench/static
+clean:  ## 清理构建与缓存（跨平台；也可 python -m workbench.build --clean）
+	$(PY) -m workbench.build --clean

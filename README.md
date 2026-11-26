@@ -1,14 +1,14 @@
 # wmshare-workbench
 
 **本地 A 股投研工作台**——以 [wmshare](https://github.com/open-winmale/wmshare) 为数据层，
-一个 `python run.py` 起单端口服务，浏览器打开即用。
+一条命令装好，起单端口服务，浏览器打开即用。
 
 盘中实时盘面 · 表达式选股 · 历史回测 · 分区懒加载的个股研究 · 五法成本账本 · AI 数据问答
 
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![零运行期依赖](https://img.shields.io/badge/%E8%BF%90%E8%A1%8C%E6%9C%9F%E4%BE%9D%E8%B5%96-0-brightgreen)](pyproject.toml)
 [![只绑回环](https://img.shields.io/badge/%E7%BB%91%E5%AE%9A-127.0.0.1-blue)](SECURITY.md)
-[![离线用例](https://img.shields.io/badge/%E7%A6%BB%E7%BA%BF%E7%94%A8%E4%BE%8B-447-success)](tests/)
+[![离线用例](https://img.shields.io/badge/%E7%A6%BB%E7%BA%BF%E7%94%A8%E4%BE%8B-453-success)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 > 不给买卖结论、不给目标价、不对接券商。每个数字都带 `as_of` 与新鲜度判决，
@@ -102,13 +102,31 @@
 
 ## 快速开始
 
+### 方式一：装预构建包（推荐，不需要 Node）
+
 ```bash
-git clone https://github.com/open-winmale/wmshare-workbench && cd wmshare-workbench
-python -m pip install ".[data]"     # wmshare 是唯一可选运行期依赖
-python run.py                       # → http://127.0.0.1:8787/
+pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+wmshare-workbench
 ```
 
-前端产物已随包发布；从源码改动前端才需要 `make web`（Node ≥ 18.18）。
+打开 <http://127.0.0.1:8787/> 即可。这个 wheel **自带界面**，不克隆仓库、
+不装 Node、不需要构建。数据来自 wmshare：装了 SDK 即为免注册真实数据。
+
+### 方式二：从源码运行（改代码/参与开发时用）
+
+```bash
+git clone https://github.com/open-winmale/wmshare-workbench && cd wmshare-workbench
+python -m pip install -e ".[data]"
+python -m workbench.build        # 构建前端产物（需要 Node ≥ 18.18）
+python run.py                    # → http://127.0.0.1:8787/
+```
+
+前端产物**不入库**（构建输出不进 git），所以从源码安装必须构建一次——
+这是唯一需要 Node 的场景。Windows 上没有 GNU make 也能用上面的 `python -m`
+命令；习惯 make 的话 `make web` 等价。
+
+> 如果打开页面看到「前端尚未构建」，就是少了上面那步构建：源码安装跑
+> `python -m workbench.build`；否则换用方式一的自带界面 wheel。
 
 ### 三种访问方式（页顶始终标明当前是哪种）
 
@@ -175,7 +193,7 @@ quality/baselines/     七份棘轮基线
 
 ```bash
 make check     # 八个门禁
-make test      # 447 个离线用例
+make test      # 453 个离线用例
 make preview   # 上面两个一起跑（提交前用这个）
 ```
 
