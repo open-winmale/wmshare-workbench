@@ -3,8 +3,16 @@
 # 存在的理由：前端产物不入库（.gitignore），所以「干净 clone 构建出的 wheel
 # 没有界面」。本工作流把产物在 CI 里构建好再打包，用户装 wheel 时不需要 Node。
 #
-# 用户拿到的一条命令（资产名固定，链接不随版本变）：
-#   pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+# 用户拿到的一条命令（资产名是标准 wheel 名，含版本号）：
+#   pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-<ver>-py3-none-any.whl
+#
+# **为什么资产名必须带版本号**：一度上传过一个去掉版本号的「固定名」副本，
+# 想让链接永久有效。但 PEP 427 规定 wheel 文件名必须是
+# ``name-version-py3-none-any.whl``；缺版本号时 **pip 直接拒绝**
+# （"not a valid wheel filename"）、**uv 也拒绝**（"expected version to start
+# with a number"）。那条「最省事」的安装命令一行都跑不起来，且当时 CI 全绿。
+# ``/releases/latest/download/`` 本身已指向最新 release，版本号放在文件名里
+# 完全不影响链接稳定性。
 name: release
 
 on:
@@ -83,27 +91,38 @@ jobs:
               proc.terminate()
           PY
 
-      # 资产名固定：/releases/latest/download/<固定名> 才能长期有效
-      - name: 规整资产名
+      # 上传前把版本号取出来，命中文档里的安装链接。
+      # 不再复制「去版本号」的副本——那种文件名 pip/uv 都装不了（见文件头）。
+      - name: 取版本号
         run: |
           set -euo pipefail
+          count=$(ls dist/*.whl | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "FAIL: dist/ 里应只有一个 wheel，实际 $count 个"
+            exit 1
+          fi
           whl=$(ls dist/*.whl)
+          ver=$(python -c "import workbench; print(workbench.__version__)")
+          expected="dist/wmshare_workbench-${ver}-py3-none-any.whl"
+          # 文件名与 __version__ 必须一致，否则 README 里的链接指向不存在的资产
+          if [ "$whl" != "$expected" ]; then
+            echo "FAIL: wheel 名 $whl 与 __version__=$ver 不匹配（期望 $expected）"
+            exit 1
+          fi
           echo "WHL=$whl" >> "$GITHUB_ENV"
-          cp "$whl" dist/wmshare_workbench-py3-none-any.whl
+          echo "VER=$ver" >> "$GITHUB_ENV"
 
       - name: 创建 Release 并上传
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            ${{ env.WHL }}
-            dist/wmshare_workbench-py3-none-any.whl
+          files: ${{ env.WHL }}
           generate_release_notes: true
           body: |
             ## 安装（无需 Node、无需克隆仓库）
 
             ```bash
-            pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+            pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-${{ env.VER }}-py3-none-any.whl
             wmshare-workbench
             ```
 

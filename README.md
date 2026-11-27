@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/python-3.11%2B-3776AB?logo=python&logoColor=white)](pyproject.toml)
 [![零运行期依赖](https://img.shields.io/badge/%E8%BF%90%E8%A1%8C%E6%9C%9F%E4%BE%9D%E8%B5%96-0-brightgreen)](pyproject.toml)
 [![只绑回环](https://img.shields.io/badge/%E7%BB%91%E5%AE%9A-127.0.0.1-blue)](SECURITY.md)
-[![离线用例](https://img.shields.io/badge/%E7%A6%BB%E7%BA%BF%E7%94%A8%E4%BE%8B-453-success)](tests/)
+[![离线用例](https://img.shields.io/badge/%E7%A6%BB%E7%BA%BF%E7%94%A8%E4%BE%8B-456-success)](tests/)
 [![License](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 
 > 不给买卖结论、不给目标价、不对接券商。每个数字都带 `as_of` 与新鲜度判决，
@@ -105,12 +105,17 @@
 ### 方式一：装预构建包（推荐，不需要 Node）
 
 ```bash
-pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-py3-none-any.whl
+pip install https://github.com/open-winmale/wmshare-workbench/releases/latest/download/wmshare_workbench-0.1.0-py3-none-any.whl
 wmshare-workbench
 ```
 
 打开 <http://127.0.0.1:8787/> 即可。这个 wheel **自带界面**，不克隆仓库、
 不装 Node、不需要构建。数据来自 wmshare：装了 SDK 即为免注册真实数据。
+
+> 链接里带版本号是必须的：PEP 427 要求 wheel 文件名含版本号，去掉它 pip 和 uv
+> 都会拒绝安装。`/releases/latest/download/` 已经指向最新版，所以升级时把
+> 文件名里的版本号换掉即可；`gates/check_contract.py` 会断言这个数字与
+> `__version__` 一致，不会漂移。
 
 ### 方式二：从源码运行（改代码/参与开发时用）
 
@@ -193,7 +198,7 @@ quality/baselines/     七份棘轮基线
 
 ```bash
 make check     # 八个门禁
-make test      # 453 个离线用例
+make test      # 456 个离线用例
 make preview   # 上面两个一起跑（提交前用这个）
 ```
 

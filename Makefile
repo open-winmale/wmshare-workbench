@@ -5,6 +5,10 @@
 
 PY ?= python3
 PYTHON_DIRS := backend gates tests
+#: 让 `python -m workbench.*` 在**未安装**包的仓库里也能跑（干净 clone 直接 make）。
+#: 之前 `make wheel` 在干净 clone 上报 ModuleNotFoundError——只有 `pip install -e .`
+#: 过的机器能跑通，而 CI 恰好装了，于是这个缺口一直没暴露。
+BACKEND_PP := PYTHONPATH=backend
 
 .PHONY: help fmt lint check test preview web wheel gen-contract run smoke clean
 
@@ -42,15 +46,15 @@ gen-contract:  ## 从 Python 契约生成 frontend/src/api/contract.ts
 	$(PY) gates/gen_contract.py
 
 web:  ## 构建前端产物到 backend/workbench/static/（跨平台；也可 python -m workbench.build）
-	$(PY) -m workbench.build
+	$(BACKEND_PP) $(PY) -m workbench.build
 
 wheel:  ## 构建 wheel 并断言内含前端产物（先 web，否则打出的包没有界面）
-	$(PY) -m workbench.build
-	$(PY) -m build --wheel
-	$(PY) gates/check_wheel.py
+	$(BACKEND_PP) $(PY) -m workbench.build
+	$(BACKEND_PP) $(PY) -m build --wheel
+	$(BACKEND_PP) $(PY) gates/check_wheel.py
 
 run:  ## 启动工作台（装了 wmshare 即免注册真实数据；未装给接入指引）
 	$(PY) run.py
 
 clean:  ## 清理构建与缓存（跨平台；也可 python -m workbench.build --clean）
-	$(PY) -m workbench.build --clean
+	$(BACKEND_PP) $(PY) -m workbench.build --clean

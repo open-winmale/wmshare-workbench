@@ -34,7 +34,10 @@ dependencies = []
 
 [project.optional-dependencies]
 data = ["wmshare>=4.0.0"]
-dev = ["pytest>=7", "pytest-cov>=5", "ruff>=0.6"]
+#: ``build`` 必须有：``make wheel`` / CI 的 wheel job 都要跑 ``python -m build``。
+#: 曾经漏了它，CI 的 wheel job 直接 `No module named build` —— 那个 job 恰好是
+#: 「装完有没有界面」的唯一守卫，而它自己先挂了，等于守卫从未生效。
+dev = ["pytest>=7", "pytest-cov>=5", "ruff>=0.6", "build>=1.0"]
 figures = ["matplotlib>=3.6"]
 excel = ["openpyxl>=3.1"]
 

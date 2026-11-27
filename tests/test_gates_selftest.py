@@ -125,17 +125,20 @@ def sandbox(tmp_path: Path) -> Path:
     ``tests/`` 与 ``Makefile`` 必须一起复制：``check_plan`` 会用它们校验台账
     里的 ``evidence`` 是否指向真实存在的对象。缺了它们，自检会因为「证据不存在」
     而红，掩盖掉我们真正想验的违规。
+
+    ``README.md`` 与 ``.github/workflows`` 同理：``check_contract`` 的分发包
+    链接校验扫的就是它们，缺了会报「文件不存在」而不是我们要验的违规。
     """
     import shutil
 
-    for name in ("gates", "backend", "docs", "quality", "tests", "frontend"):
+    for name in ("gates", "backend", "docs", "quality", "tests", "frontend", ".github"):
         src = REPO / name
         if not src.is_dir():
             (tmp_path / name).mkdir(parents=True)
             continue
         shutil.copytree(src, tmp_path / name,
                         ignore=shutil.ignore_patterns("__pycache__", "node_modules"))
-    for f in ("Makefile", "pyproject.toml"):
+    for f in ("Makefile", "pyproject.toml", "README.md"):
         if (REPO / f).is_file():
             shutil.copy2(REPO / f, tmp_path / f)
     return tmp_path
@@ -570,6 +573,59 @@ def test_contract_detects_version_drift(sandbox: Path) -> None:
     proc = run_in(sandbox, "check_contract.py")
     assert proc.returncode == 1, proc.stdout
     assert "版本不一致" in proc.stdout
+
+
+class TestDistLinks:
+    """``check_contract`` 的分发包链接校验。
+
+    **真事（2026-11-26）**：为让链接「永久有效」，release 资产名被去掉版本号
+    写成 ``wmshare_workbench-py3-none-any.whl``。看着聪明，实际 pip 报
+    「not a valid wheel filename」、uv 报「expected version to start with a
+    number」——README 的第一行命令根本跑不起来，而八个门禁与 453 个用例全绿。
+    没有一条断言把那条命令真的验一遍。
+    """
+
+    def _break(self, sandbox: Path, old: str, new: str) -> subprocess.CompletedProcess[str]:
+        readme = sandbox / "README.md"
+        if not readme.is_file():
+            pytest.skip("sandbox 未含 README.md")
+        text = readme.read_text(encoding="utf-8")
+        assert old in text, f"README 里找不到 {old}"
+        readme.write_text(text.replace(old, new), encoding="utf-8")
+        return run_in(sandbox, "check_contract.py")
+
+    def test_versionless_wheel_name_fails(self, sandbox: Path) -> None:
+        """去掉版本号的 wheel 名 → 红（pip/uv 都不认这种文件名）。"""
+        proc = self._break(
+            sandbox,
+            "wmshare_workbench-0.1.0-py3-none-any.whl",
+            "wmshare_workbench-py3-none-any.whl",
+        )
+        assert proc.returncode == 1, proc.stdout
+        assert "不合法" in proc.stdout
+
+    def test_version_drift_in_link_fails(self, sandbox: Path) -> None:
+        """链接里的版本号与 ``__version__`` 不一致 → 红（发布后 404）。"""
+        proc = self._break(
+            sandbox,
+            "wmshare_workbench-0.1.0-py3-none-any.whl",
+            "wmshare_workbench-9.9.9-py3-none-any.whl",
+        )
+        assert proc.returncode == 1, proc.stdout
+        assert "404" in proc.stdout
+
+    def test_missing_link_fails(self, sandbox: Path) -> None:
+        """快速开始里一个下载链接都没有 → 红（用户没有能粘贴的命令）。"""
+        readme = sandbox / "README.md"
+        if not readme.is_file():
+            pytest.skip("sandbox 未含 README.md")
+        text = readme.read_text(encoding="utf-8")
+        readme.write_text(
+            re.sub(r"https://\S*/releases/\S*\.whl", "", text), encoding="utf-8"
+        )
+        proc = run_in(sandbox, "check_contract.py")
+        assert proc.returncode == 1, proc.stdout
+        assert "没有任何 releases 下载链接" in proc.stdout
 
 
 def test_makefile_is_real_make() -> None:

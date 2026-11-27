@@ -6,21 +6,35 @@
 **面向最终用户，不是开发者**：多数人只需要「装自带界面的预构建包」这条路，
 从源码构建是第二条。所以第一条给 pip 命令，第二条才说 Node。
 
-**坑（2026-11-26 实测）**：这段字符串**不是** f-string。如果 CSS 里按
+**坑一（2026-11-26 实测）**：这段字符串**不是** f-string。如果 CSS 里按
 f-string 习惯写成 ``body{{...}}``，大括号会原样输出，整段样式失效——页面
 白底无样式，``<pre>`` 里的 ``#`` 还会被浏览器当标题渲染。而这是用户看到
 的唯一指引，坏了等于没有。``tests/test_platform.py`` 有一条断言钉住
 「HTML 里不得出现 ``{{``」。
+
+**坑二（同一天）**：下载地址一度写成不带版本号的
+``wmshare_workbench-py3-none-any.whl``，看着「链接永久有效」，实际 **pip 与 uv
+都拒绝安装**——PEP 427 规定 wheel 文件名必须是 ``name-version-py3-none-any.whl``，
+``latest`` 这类词不是合法版本号（uv 原话：「expected version to start with a
+number」）。于是「快速开始」第一行就是死的，而当时所有门禁与测试全绿：
+没人把那条命令真的跑一遍。现在文件名由 ``__version__`` 拼出，
+``gates/check_contract.py`` 断言全仓的分发链接都指向它。
 """
 
 from __future__ import annotations
 
-__all__ = ["NOT_BUILT_HTML"]
+from workbench import __version__
 
-#: 预构建包的固定下载地址（release workflow 每次都传同名副本，故不随版本变）。
+__all__ = ["NOT_BUILT_HTML", "WHEEL_NAME", "WHEEL_URL"]
+
+#: 分发包的文件名。**必须带版本号**（PEP 427），否则 pip/uv 拒绝安装。
+WHEEL_NAME = f"wmshare_workbench-{__version__}-py3-none-any.whl"
+
+#: 预构建包的下载地址：``/releases/latest/download/`` + 上面的文件名。
+#: 链接里带版本号不影响稳定性——``latest`` 指向最新 release，而资产名随
+#: 版本更新；README 与这里的版本号由门禁钉住，不会漂移。
 WHEEL_URL = (
-    "https://github.com/open-winmale/wmshare-workbench/releases/latest/download/"
-    "wmshare_workbench-py3-none-any.whl"
+    "https://github.com/open-winmale/wmshare-workbench/releases/latest/download/" + WHEEL_NAME
 )
 
 NOT_BUILT_HTML = (
