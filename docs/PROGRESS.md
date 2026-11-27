@@ -36,6 +36,8 @@
 | P0-27 | feat | arch | done | `run.py` 存在且 `--version` 可用（旧版被引用但文件缺失） | `tests/test_gates_selftest.py::test_run_py_exists_and_importable` | none | 2026-11-25 |
 | P0-28 | feat | arch | done | `check_wheel` 断言 wheel 内含 `static/index.html` 且无 `node_modules` | `gates/check_wheel.py` | none | 2026-11-25 |
 | P0-29 | docs | arch | done | `docs/ARCHITECTURE.md` + `ADR/002` 落盘，规范假承诺逐条修正 | `docs/ARCHITECTURE.md` · `docs/ADR/002-backend-frontend-colocated.md` | none | 2026-11-25 |
+| P0-30 | fix | release | done | 干净 clone 上 `make wheel` 不再报 `No module named workbench`；CI 的 wheel job 不再报 `No module named build` | `Makefile` · `pyproject.toml` | none | 2026-11-27 |
+| P0-31 | fix | release | done | README 与提示页的 wheel 下载链接必须是合法 PEP 427 文件名且版本等于 `__version__`；缺版本号/版本漂移/链接丢失三种违规各有用例 | `tests/test_gates_selftest.py::TestDistLinks` · `gates/check_contract.py::check_dist_links` | none | 2026-11-27 |
 
 ## P1U · 前端设计系统（P1 期间可并行）
 
@@ -169,7 +171,7 @@
 
 ---
 
-**统计**：总计 121 · done 115 · in_progress 0 · accepted 0 · proposed 6
+**统计**：总计 123 · done 117 · in_progress 0 · accepted 0 · proposed 6
 
 ## 阶段验收记录
 
